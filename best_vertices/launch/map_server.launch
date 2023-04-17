@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-    <arg name="env" default="room_lvl7" /> 
-
-    <node pkg="map_server" type="map_server" name="map_server" args="$(find best_vertices)/cfg/maps/$(arg env)/map.yaml"/>
-</launch>

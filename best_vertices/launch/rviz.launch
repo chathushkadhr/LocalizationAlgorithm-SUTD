@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-  <arg name="cfg" default="default"/>
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find best_vertices)/cfg/rviz/$(arg cfg).rviz" output="screen"/>
-  <!--<node pkg="rviz" type="rviz" name="rviz" output="screen"/> -->
-</launch>
