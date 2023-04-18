@@ -1,7 +1,9 @@
 best_vertices_node:
   ros__parameters:
-      # Map Topic discovery
-      n_robots: $(var n_robots)
- 
+    n_robots: $(var n_robots)
+    human_pos: $(var human_pos)
+    radius: $(var radius) 
+    env: $(var env) 
+    update_rate_info: $(var update_rate_info) 
  
 

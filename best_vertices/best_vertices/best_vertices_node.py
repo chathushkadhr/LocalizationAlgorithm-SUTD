@@ -6,7 +6,7 @@ from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from tuw_multi_robot_msgs.msg import Graph
 
-
+from nav_msgs.srv import LoadMap
 
 
 class BestVertices(Node):
@@ -15,10 +15,10 @@ class BestVertices(Node):
     def __init__(self):
         super().__init__('best_vertices_node')
         
-        self.msg_recived=0 
         self.vertices = None
+        self.n_robot_pos = None
         
-        self.subscription = self.create_subscription(Graph,"/segments", self.callback,10)
+        self.subscription = self.create_subscription(Graph,"/segments", self.graph_callback,10)
     
         self.declare_parameter("n_robots", 6)
         self.n_robots = self.get_parameter("n_robots").get_parameter_value().integer_value
@@ -34,31 +34,44 @@ class BestVertices(Node):
         self.declare_parameter("env", "room_lvl7")
         self.env = self.get_parameter("env").get_parameter_value().string_value
 
-        self.declare_parameter("update_rate_infoespace", 1.0)
-        self.update_rate_infoespace = self.get_parameter("update_rate_infoespace").get_parameter_value().double_value                                
-        
+        self.declare_parameter("update_rate_info", 1.0)
+        self.update_rate_info = self.get_parameter("update_rate_info").get_parameter_value().double_value                                
         
         self.marker_pub = self.create_publisher(MarkerArray, 'visualization_marker_array',10)
-        self.markerArray = self.PubMarker(self.human_pos, self.robot_pos)
         
-        self.timer_main = self.create_timer(2, self.pub_marker)
+        
+        self.timer_main = self.create_timer(1, self.timer_callbaclk)
 
         
         self.get_logger().info("n_robots: "+str(self.n_robots))
         self.get_logger().info("human_pos :"+str(self.human_pos))
         self.get_logger().info("radius: "+str(self.radius))
         self.get_logger().info("env: "+str(self.env))
-        self.get_logger().info("update_rate_infoespace: "+str(self.update_rate_infoespace))
+        self.get_logger().info("update_rate_info: "+str(self.update_rate_info))
     
-    def callback(self,msg):
-        if not self.msg_recived:
-            self.vertices = msg.vertices
-            self.msg_recived=1
-            
-        
-    def pub_marker(self):
-        self.marker_pub.publish(self.markerArray)
+    def graph_callback(self,msg):
+        self.vertices = msg.vertices
+
+    def timer_callbaclk(self): 
         self.get_logger().info("Hello World")
+         
+         
+         
+        if self.vertices == None:
+            return
+        
+        V = self.Vertices(self.vertices)
+        human_pos = tuple(human_pos)
+        robot_pos = self.RobotPos(self.n_robots, human_pos, self.radius, V) 
+        self.get_logger().info("\nHuman position (red square): {0}".format(human_pos))
+        self.get_logger().info("Radius: {0:.2f}".format(self.radius))
+        self.get_logger().info("\nRobot positions (green circles): ")
+        self.get_logger().info(robot_pos)
+        
+        markerArray = self.PubMarker(self.human_pos, robot_pos)      
+        self.marker_pub.publish(markerArray)
+        
+        
     
     def Dist(self,a, b):
         return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
@@ -91,7 +104,7 @@ class BestVertices(Node):
             print("\nThere is no vertex in a radius of {0:.2f} from the vertex {1}.".format(radius, ref_point))
         else:
             for i in range(len(robot_pos)):
-                vertices_in_range = [vertices_in_range[j] for j in range(len(vertices_in_range)) if Dist(vertices_in_range[j], human_pos) >= radius/3 and Dist(vertices_in_range[j], robot_pos[i]) >= radius/3]
+                vertices_in_range = [vertices_in_range[j] for j in range(len(vertices_in_range)) if self.Dist(vertices_in_range[j], human_pos) >= radius/3 and self.Dist(vertices_in_range[j], robot_pos[i]) >= radius/3]
             furthest_vertex = self.FurthestVertex(ref_point, vertices_in_range)
             robot_pos += furthest_vertex
         return robot_pos
@@ -102,7 +115,7 @@ class BestVertices(Node):
         V.remove(robot_pos[0])
         if n_robots >= 2:
             vertices_in_range = self.VerticesInRange(robot_pos[0], radius, V)
-            vertices_in_range = [vertices_in_range[j] for j in range(len(vertices_in_range)) if Dist(vertices_in_range[j], human_pos) >= radius/3 and Dist(vertices_in_range[j], robot_pos[0]) >= radius/3]
+            vertices_in_range = [vertices_in_range[j] for j in range(len(vertices_in_range)) if self.Dist(vertices_in_range[j], human_pos) >= radius/3 and self.Dist(vertices_in_range[j], robot_pos[0]) >= radius/3]
             robot_pos += self.FurthestVertex(robot_pos[0], vertices_in_range)
         if n_robots >= 3:
             V.remove(robot_pos[1])
