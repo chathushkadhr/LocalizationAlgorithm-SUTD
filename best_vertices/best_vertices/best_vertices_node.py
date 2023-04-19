@@ -6,9 +6,6 @@ from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from tuw_multi_robot_msgs.msg import Graph
 
-from nav_msgs.srv import LoadMap
-
-
 class BestVertices(Node):
     
     
@@ -61,7 +58,7 @@ class BestVertices(Node):
             return
         
         V = self.Vertices(self.vertices)
-        human_pos = tuple(human_pos)
+        human_pos = tuple(self.human_pos)
         robot_pos = self.RobotPos(self.n_robots, human_pos, self.radius, V) 
         self.get_logger().info("\nHuman position (red square): {0}".format(human_pos))
         self.get_logger().info("Radius: {0:.2f}".format(self.radius))
@@ -93,6 +90,7 @@ class BestVertices(Node):
         return [V[i] for i in range(len(V)) if self.Dist(V[i], pos) < radius]   
     
     def FurthestVertex(self,point, V):
+        #self.get_logger().info(str(V))
         furthest_ind = distance.cdist([point], V).argmax()
         return [V[furthest_ind]]
     
