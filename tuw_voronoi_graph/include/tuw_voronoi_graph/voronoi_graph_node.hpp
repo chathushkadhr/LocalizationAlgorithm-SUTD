@@ -20,7 +20,7 @@ using std::placeholders::_1;
 
 namespace tuw_graph{
 
-  class VoronoiGeneratorNode : public rclcpp::Node , public Serializer, public VoronoiGraphGenerator, public voronoi_map::VoronoiPathGenerator
+  class VoronoiGeneratorNode : public rclcpp::Node , public Serializer, public voronoi_map::VoronoiPathGenerator, public VoronoiGraphGenerator
   {
     public:
       VoronoiGeneratorNode();

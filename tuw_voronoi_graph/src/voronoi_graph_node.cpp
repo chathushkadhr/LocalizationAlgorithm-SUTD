@@ -2,9 +2,9 @@
 
 using namespace tuw_graph;
 
+
 VoronoiGeneratorNode::VoronoiGeneratorNode() : 
-    Node("voronoi_graph_node"), Serializer(), VoronoiGraphGenerator(), voronoi_map::VoronoiPathGenerator()
- 
+    Node("voronoi_graph_node"), Serializer(), voronoi_map::VoronoiPathGenerator(), VoronoiGraphGenerator()
 { 
   this->declare_parameter("loop_rate",  0.1);
   loop_rate=this->get_parameter("loop_rate").get_parameter_value().get<double>(); 
@@ -57,9 +57,7 @@ void VoronoiGeneratorNode::timer_callback()
 {
   //RCLCPP_INFO(this->get_logger(),"Hello World");
   publishSegments();  
-
 }
-
 
 void VoronoiGeneratorNode::globalMapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr _map)
 {
@@ -117,8 +115,6 @@ void VoronoiGeneratorNode::globalMapCallback(const nav_msgs::msg::OccupancyGrid:
         }
         pubVoronoiMapImage_->publish(voronoiMapImage_);
     }
-
-
 
 }
 
@@ -217,3 +213,4 @@ void VoronoiGeneratorNode::publishSegments()
 
       pubSegments_->publish(graph);
   }
+

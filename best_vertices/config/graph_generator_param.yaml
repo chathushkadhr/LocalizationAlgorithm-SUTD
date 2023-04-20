@@ -1,0 +1,11 @@
+graph_generator:
+  ros__parameters:
+
+    loop_rate: 0.1
+    publish_voronoi_map_image: False
+    map_inflation: 0.1
+    segment_length: 1.0
+    opt_crossings: 0.2
+    opt_end_segments: 0.2
+    graph_cache_path: $(var path)/cfg/graph/$(var cfg)/cache/
+    # custom_graph_path: $(var custom_graph_path) 
