@@ -11,7 +11,7 @@ class BestVertices(Node):
     
     def __init__(self):
         super().__init__('best_vertices_node')
-        
+        self.ver = None
         self.vertices = None
         self.n_robot_pos = None
         
@@ -20,9 +20,9 @@ class BestVertices(Node):
         self.declare_parameter("n_robots", 6)
         self.n_robots = self.get_parameter("n_robots").get_parameter_value().integer_value
         
-        self.declare_parameter("human_pos", [6,28])
-        self.human_pos = self.get_parameter("human_pos").get_parameter_value().integer_array_value
-        
+        self.declare_parameter("human_pos", [6.0,28.0])
+        self.human_pos = self.get_parameter("human_pos").get_parameter_value().double_array_value
+    
 
         self.declare_parameter("radius", 12)
         self.n_robots = self.get_parameter("n_robots").get_parameter_value().integer_value
@@ -35,7 +35,7 @@ class BestVertices(Node):
         self.update_rate_info = self.get_parameter("update_rate_info").get_parameter_value().double_value                                
         
         self.marker_pub = self.create_publisher(MarkerArray, 'visualization_marker_array',10)
-        
+
         
         self.timer_main = self.create_timer(1, self.timer_callbaclk)
 
@@ -49,23 +49,21 @@ class BestVertices(Node):
     def graph_callback(self,msg):
         self.vertices = msg.vertices
 
+ 
     def timer_callbaclk(self): 
-        self.get_logger().info("Hello World")
-         
-         
+
          
         if self.vertices == None:
             return
         
         V = self.Vertices(self.vertices)
+        self.ver = V[:]
         human_pos = tuple(self.human_pos)
         robot_pos = self.RobotPos(self.n_robots, human_pos, self.radius, V) 
         self.get_logger().info("\nHuman position (red square): {0}".format(human_pos))
         self.get_logger().info("Radius: {0:.2f}".format(self.radius))
-        self.get_logger().info("\nRobot positions (green circles): ")
-        self.get_logger().info(robot_pos)
-        
-        markerArray = self.PubMarker(self.human_pos, robot_pos)      
+        self.get_logger().info("\nRobot positions (green circles): ")   
+        markerArray = self.PubMarker(self.human_pos, robot_pos)   
         self.marker_pub.publish(markerArray)
         
         
@@ -136,9 +134,9 @@ class BestVertices(Node):
         marker.color.g = 1.0
         marker.color.b = 0.0
         marker.color.a = 1.0
-        marker.pose.position.x = point[0]
-        marker.pose.position.y = point[1]
-        marker.pose.position.z = 0
+        marker.pose.position.x = float(point[0])
+        marker.pose.position.y = float(point[1])
+        marker.pose.position.z = 0.0
         marker.pose.orientation.x = 0.0
         marker.pose.orientation.y = 0.0
         marker.pose.orientation.z = 0.0
@@ -159,14 +157,15 @@ class BestVertices(Node):
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker.color.a = 1.0
-        marker.pose.position.x = point[0]
-        marker.pose.position.y = point[1]
-        marker.pose.position.z = 0
+        marker.pose.position.x = float(point[0])
+        marker.pose.position.y = float(point[1])
+        marker.pose.position.z = 0.0
         marker.pose.orientation.x = 0.0
         marker.pose.orientation.y = 0.0
         marker.pose.orientation.z = 0.0
         marker.pose.orientation.w = 1.0
-        markerArray.markers.append(marker)
+        markerArray.markers.append(marker)        
+        
         return markerArray
 
     def PubMarker(self,human_pos, max_degs_vertices):
@@ -174,6 +173,27 @@ class BestVertices(Node):
         markerArray = self.HumanMarker(human_pos, markerArray)
         for i in range(len(max_degs_vertices)):
             markerArray = self.RobotMarker(max_degs_vertices[i], markerArray)
+        for v in self.ver:
+            marker = Marker()
+            marker.header.frame_id = "/map"
+            marker.header.stamp = self.get_clock().now().to_msg()
+            marker.type = 3
+            marker.id = 0
+            marker.scale.x = 0.1
+            marker.scale.y = 0.1
+            marker.scale.z = 1.0
+            marker.color.r = 0.0
+            marker.color.g = 0.0
+            marker.color.b = 1.0
+            marker.color.a = 1.0
+            marker.pose.position.x = float(v[0])
+            marker.pose.position.y = float(v[1])
+            marker.pose.position.z = 0.0
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            markerArray.markers.append(marker)
         id = 0
         for m in markerArray.markers:
             m.id = id

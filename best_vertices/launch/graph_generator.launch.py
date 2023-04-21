@@ -44,7 +44,7 @@ def generate_launch_description():
             name='graph_generator',
             output="screen",
             parameters=[ParameterFile(os.path.join(pkg_dir, 'config', 'graph_generator_param.yaml'), allow_substs=True)],
-            # prefix=['xterm -e gdb -ex run --args']
+            prefix=['xterm -e gdb -ex run --args']
         # arguments=['--ros-args', '--log-level', 'debug'],
         #emulate_tty=True)
             

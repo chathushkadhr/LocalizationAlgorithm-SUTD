@@ -13,6 +13,7 @@
 #include "nav_msgs/msg/occupancy_grid.hpp"
 
 #include <fstream>
+#include <iostream>
 #include <boost/archive/xml_oarchive.hpp>
 #include <boost/archive/xml_iarchive.hpp>
 
