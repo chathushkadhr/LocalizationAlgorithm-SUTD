@@ -54,13 +54,20 @@ class BestVertices(Node):
     def timer_callbaclk(self): 
 
          
-        if self.vertices == None:
+        if self.vertices == None or len(self.vertices)==0:
             return
         
         V = self.Vertices(self.vertices)
         self.ver = V[:]
+    
         human_pos = tuple(self.human_pos)
-        robot_pos = self.RobotPos(self.n_robots, human_pos, self.radius, V) 
+        try:
+            robot_pos = self.RobotPos(self.n_robots, human_pos, self.radius, V) 
+        except IndexError as e:
+            self.get_logger().info(e.args[0])
+            self.timer_main.cancel()
+            return
+                    
         self.get_logger().info("\nHuman position (red square): {0}".format(human_pos))
         self.get_logger().info("Radius: {0:.2f}".format(self.radius))
         self.get_logger().info("\nRobot positions (green circles): ")   
@@ -89,7 +96,6 @@ class BestVertices(Node):
         return [V[i] for i in range(len(V)) if self.Dist(V[i], pos) < radius]   
     
     def FurthestVertex(self,point, V):
-        #self.get_logger().info(str(V))
         furthest_ind = distance.cdist([point], V).argmax()
         return [V[furthest_ind]]
     
@@ -108,10 +114,14 @@ class BestVertices(Node):
     
     def RobotPos(self,n_robots, human_pos, radius, V):
         vertices_in_range = self.VerticesInRange(human_pos, radius, V)
+        if len(vertices_in_range)==0:
+            raise IndexError("No suitable vertex for the human")
         robot_pos = self.FurthestVertex(human_pos, vertices_in_range)
         V.remove(robot_pos[0])
         if n_robots >= 2:
             vertices_in_range = self.VerticesInRange(robot_pos[0], radius, V)
+            if len(vertices_in_range)==0:
+                raise IndexError("No suitable vertex for a human")
             vertices_in_range = [vertices_in_range[j] for j in range(len(vertices_in_range)) if self.Dist(vertices_in_range[j], human_pos) >= radius/3 and self.Dist(vertices_in_range[j], robot_pos[0]) >= radius/3]
             robot_pos += self.FurthestVertex(robot_pos[0], vertices_in_range)
         if n_robots >= 3:

@@ -10,8 +10,7 @@ from launch.substitutions import LaunchConfiguration
 from launch.conditions import IfCondition
 from launch.actions import TimerAction
 import launch_ros.actions
- 
-import time
+
     
 def generate_launch_description():
     
@@ -23,7 +22,7 @@ def generate_launch_description():
         description ='Number of robots')
     
     declare_arg_human_pos = DeclareLaunchArgument('human_pos',
-        default_value= "[6.0,28.0]",
+        default_value= "[6.0, 28.0]",
         description='Position of the human')
         
     declare_arg_radius = DeclareLaunchArgument('radius',
@@ -110,13 +109,10 @@ def generate_launch_description():
     ld.add_action(declare_arg_path)
     ld.add_action(declare_arg_update_rate_info)
     
-    #ld.add_action(graph_cmd)
-    
+    ld.add_action(graph_cmd)
     ld.add_action(bv_node)
     ld.add_action(ms_node)
     ld.add_action(start_lifecycle_manager_cmd)
     ld.add_action(rviz_cmd)
-
-
     
     return ld

@@ -39,8 +39,10 @@ VoronoiGeneratorNode::VoronoiGeneratorNode() :
             customGraphPath_ += "/";
         }
   
-  
-  subMap_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>("map", 10, std::bind(&VoronoiGeneratorNode::globalMapCallback, this, _1));
+  rclcpp::QoS qos_profile = rclcpp::QoS(rclcpp::KeepLast(10)).transient_local();
+
+  subMap_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>("map", qos_profile, std::bind(&VoronoiGeneratorNode::globalMapCallback, this, _1));
+
   if(publishVoronoiMapImage_){
             pubVoronoiMapImage_=this->create_publisher<nav_msgs::msg::OccupancyGrid>("map_eroded", 1);
         }
