@@ -23,7 +23,7 @@ def generate_launch_description():
         description ='Number of robots')
     
     declare_arg_human_pos = DeclareLaunchArgument('human_pos',
-        default_value= "[6,28]",
+        default_value= "[6.0,28.0]",
         description='Position of the human')
         
     declare_arg_radius = DeclareLaunchArgument('radius',

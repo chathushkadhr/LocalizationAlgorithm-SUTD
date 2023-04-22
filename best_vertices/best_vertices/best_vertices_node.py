@@ -5,6 +5,7 @@ from scipy.spatial import distance
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from tuw_multi_robot_msgs.msg import Graph
+import time
 
 class BestVertices(Node):
     
@@ -179,8 +180,8 @@ class BestVertices(Node):
             marker.header.stamp = self.get_clock().now().to_msg()
             marker.type = 3
             marker.id = 0
-            marker.scale.x = 0.1
-            marker.scale.y = 0.1
+            marker.scale.x = 0.25
+            marker.scale.y = 0.25
             marker.scale.z = 1.0
             marker.color.r = 0.0
             marker.color.g = 0.0
