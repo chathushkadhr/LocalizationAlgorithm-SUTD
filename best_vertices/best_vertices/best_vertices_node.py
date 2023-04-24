@@ -25,9 +25,8 @@ class BestVertices(Node):
         self.human_pos = self.get_parameter("human_pos").get_parameter_value().double_array_value
     
 
-        self.declare_parameter("radius", 12)
-        self.n_robots = self.get_parameter("n_robots").get_parameter_value().integer_value
-        self.radius = self.get_parameter("radius").get_parameter_value().integer_value
+        self.declare_parameter("radius", 12.0)
+        self.radius = self.get_parameter("radius").get_parameter_value().double_value
 
         self.declare_parameter("env", "room_lvl7")
         self.env = self.get_parameter("env").get_parameter_value().string_value
@@ -121,7 +120,7 @@ class BestVertices(Node):
         if n_robots >= 2:
             vertices_in_range = self.VerticesInRange(robot_pos[0], radius, V)
             if len(vertices_in_range)==0:
-                raise IndexError("No suitable vertex for a human")
+                raise IndexError("No suitable vertex for a robot")
             vertices_in_range = [vertices_in_range[j] for j in range(len(vertices_in_range)) if self.Dist(vertices_in_range[j], human_pos) >= radius/3 and self.Dist(vertices_in_range[j], robot_pos[0]) >= radius/3]
             robot_pos += self.FurthestVertex(robot_pos[0], vertices_in_range)
         if n_robots >= 3:
