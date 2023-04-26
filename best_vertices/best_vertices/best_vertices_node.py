@@ -89,7 +89,7 @@ class BestVertices(Node):
             V.add(start_point)
             V.add(end_point)
         V = list(V)
-        return V
+        return [[round(x, 2),round(y, 2)] for x,y in V]
     
     def VerticesInRange(self,pos, radius, V):
         return [V[i] for i in range(len(V)) if self.Dist(V[i], pos) < radius]   
