@@ -18,11 +18,11 @@ def generate_launch_description():
     launch_dir = os.path.join(pkg_dir, 'launch')
     #Declare arguments
     declare_arg_n_robots = DeclareLaunchArgument("n_robots",
-        default_value = "6",
+        default_value = "2",
         description ='Number of robots')
     
     declare_arg_human_pos = DeclareLaunchArgument('human_pos',
-        default_value= "[6.0,28.0]",
+        default_value= "[0.0,0.0]",
         description='Position of the human')
         
     declare_arg_radius = DeclareLaunchArgument('radius',
@@ -30,7 +30,7 @@ def generate_launch_description():
         description='Radius')
         
     declare_arg_env = DeclareLaunchArgument('env',
-        default_value= "room_lvl7",
+        default_value= "test_zone",
         description='Environment')
 
     
@@ -48,15 +48,16 @@ def generate_launch_description():
     n_robots = LaunchConfiguration("n_robots")
     human_pos = LaunchConfiguration('human_pos')
     radius = LaunchConfiguration('radius')
-    env = LaunchConfiguration('env',default="room_lvl7")
+    env = LaunchConfiguration('env',default="test_zone")
     path = LaunchConfiguration('path')
     update_rate_info = LaunchConfiguration('update_rate_info')
-    
+    namespace = LaunchConfiguration('namespace',default="human")
 
     bv_node= Node(
             package='best_vertices',
             executable='exec_py',
             name='best_vertices_node',
+            namespace=namespace,
             output="screen",
             parameters=[ParameterFile(os.path.join(pkg_dir, 'config', 'params.yaml'), allow_substs=True)],
             #prefix=['xterm -e gdb -ex run --args']
@@ -64,28 +65,18 @@ def generate_launch_description():
         #emulate_tty=True)
             
         )
-    
-    ms_node = Node( 
-        package = 'nav2_map_server',
-        executable = "map_server",
-        name = "map_server",
-        output = "screen",
-        parameters=[ParameterFile(os.path.join(pkg_dir, 'config', 'map_server_param.yaml'), allow_substs=True)],
-        )        
+    rtg_node= Node(
+        package='robots_to_goals',
+        executable='exec_py',
+        name='robots_to_goals_node',
+        namespace=namespace,
+        output="screen",
+        #prefix=['xterm -e gdb -ex run --args']
+    # arguments=['--ros-args', '--log-level', 'debug'],
+    #emulate_tty=True)
         
-    lifecycle_nodes = ['map_server']
-    use_sim_time = True
-    autostart = True
+    )
 
-    start_lifecycle_manager_cmd = launch_ros.actions.Node(
-            package='nav2_lifecycle_manager',
-            executable='lifecycle_manager',
-            name='lifecycle_manager',
-            output='screen',
-            emulate_tty=True,  # https://github.com/ros2/launch/issues/188
-            parameters=[{'use_sim_time': use_sim_time},
-                        {'autostart': autostart},
-                        {'node_names': lifecycle_nodes}])
     
     rviz_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -97,7 +88,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(launch_dir, 'graph_generator.launch.py')),
         
-        launch_arguments={'cfg': env}.items()
+        launch_arguments={'cfg': env, 'namespace':namespace}.items()
     
         )
     
@@ -111,8 +102,7 @@ def generate_launch_description():
     
     ld.add_action(graph_cmd)
     ld.add_action(bv_node)
-    ld.add_action(ms_node)
-    ld.add_action(start_lifecycle_manager_cmd)
+    ld.add_action(rtg_node)
     ld.add_action(rviz_cmd)
     
     return ld

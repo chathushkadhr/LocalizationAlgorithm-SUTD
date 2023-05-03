@@ -6,6 +6,13 @@ using namespace tuw_graph;
 VoronoiGeneratorNode::VoronoiGeneratorNode() : 
     Node("voronoi_graph_node"), Serializer(), voronoi_map::VoronoiPathGenerator(), VoronoiGraphGenerator()
 { 
+
+  this->declare_parameter("voronoi_map_topic",  "/robot1/voronoi_map");
+  voronoi_map_topic=this->get_parameter("voronoi_map_topic").get_parameter_value().get<std::string>();
+  
+  this->declare_parameter("segment_topic",  "/robot1/segments");
+  segment_topic=this->get_parameter("segment_topic").get_parameter_value().get<std::string>();  
+
   this->declare_parameter("loop_rate",  0.1);
   loop_rate=this->get_parameter("loop_rate").get_parameter_value().get<double>(); 
   
@@ -41,13 +48,13 @@ VoronoiGeneratorNode::VoronoiGeneratorNode() :
   
   rclcpp::QoS qos_profile = rclcpp::QoS(rclcpp::KeepLast(10)).transient_local();
 
-  subMap_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>("map", qos_profile, std::bind(&VoronoiGeneratorNode::globalMapCallback, this, _1));
+  subMap_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(voronoi_map_topic, qos_profile, std::bind(&VoronoiGeneratorNode::globalMapCallback, this, _1));
 
   if(publishVoronoiMapImage_){
             pubVoronoiMapImage_=this->create_publisher<nav_msgs::msg::OccupancyGrid>("map_eroded", 1);
         }
 
-  pubSegments_ = this->create_publisher<tuw_multi_robot_msgs::msg::Graph>("segments", 1);
+  pubSegments_ = this->create_publisher<tuw_multi_robot_msgs::msg::Graph>(segment_topic, 1);
   
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&VoronoiGeneratorNode::timer_callback, this));

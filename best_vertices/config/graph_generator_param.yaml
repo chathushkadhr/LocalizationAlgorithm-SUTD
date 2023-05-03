@@ -1,11 +1,13 @@
-graph_generator:
+/$(var namespace)/graph_generator:
   ros__parameters:
 
     loop_rate: 0.1
     publish_voronoi_map_image: False
     map_inflation: 0.1
-    segment_length: 5.0
+    segment_length: 1.0
     opt_crossings: 0.5
-    opt_end_segments: 2.0
+    opt_end_segments: 1.0
     graph_cache_path: $(var path)/cfg/graph/$(var cfg)/cache/
+    voronoi_map_topic: /$(var namespace)/voronoi_map
+    segment_topic: /$(var namespace)/segments
     # custom_graph_path: $(var custom_graph_path) 

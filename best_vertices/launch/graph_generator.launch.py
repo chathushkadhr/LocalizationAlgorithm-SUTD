@@ -37,14 +37,16 @@ def generate_launch_description():
     custom_graph_path = LaunchConfiguration('custom_graph_path')    
     path = LaunchConfiguration('path')
     cfg = LaunchConfiguration('cfg')
+    namespace = LaunchConfiguration('namespace')
     
     gg_node= Node(
             package='tuw_voronoi_graph',
             executable='exec_graph',
             name='graph_generator',
+            namespace=namespace,
             output="screen",
             parameters=[ParameterFile(os.path.join(pkg_dir, 'config', 'graph_generator_param.yaml'), allow_substs=True)],
-            prefix=['xterm -e gdb -ex run --args']
+            #prefix=['xterm -e gdb -ex run --args']
         # arguments=['--ros-args', '--log-level', 'debug'],
         #emulate_tty=True)
             

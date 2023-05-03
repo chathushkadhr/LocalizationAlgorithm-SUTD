@@ -57,5 +57,7 @@ namespace tuw_graph{
       std::unique_ptr<float[]> potential;
 
       nav_msgs::msg::OccupancyGrid voronoiMapImage_;
+      std::string voronoi_map_topic;
+      std::string segment_topic;
   };
 }

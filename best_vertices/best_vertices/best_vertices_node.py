@@ -4,7 +4,10 @@ import math
 from scipy.spatial import distance
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
+from nav_msgs.msg import OccupancyGrid
 from tuw_multi_robot_msgs.msg import Graph
+from exploration.msg import ExplorationState
+from rclpy.qos import QoSProfile
 import time
 
 class BestVertices(Node):
@@ -15,17 +18,30 @@ class BestVertices(Node):
         self.ver = None
         self.vertices = None
         self.n_robot_pos = None
+          
+        self.finished_robots = []
+        self.map = None
         
-        self.subscription = self.create_subscription(Graph,"/segments", self.graph_callback,10)
+        self.declare_parameter("ns", "/robot1")
+        self.ns = self.get_parameter("ns").get_parameter_value().string_value 
+        
+        self.declare_parameter("segment_topic", "/robot1/segments")
+        self.segment_topic = self.get_parameter("segment_topic").get_parameter_value().string_value      
     
-        self.declare_parameter("n_robots", 6)
+        self.declare_parameter("voronoi_map_topic", "/robot1/voronoi_map")
+        self.voronoi_map_topic = self.get_parameter("voronoi_map_topic").get_parameter_value().string_value  
+              
+        self.declare_parameter("map_topic", "/robot1/map")
+        self.map_topic = self.get_parameter("map_topic").get_parameter_value().string_value      
+      
+        self.declare_parameter("n_robots", 2)
         self.n_robots = self.get_parameter("n_robots").get_parameter_value().integer_value
         
-        self.declare_parameter("human_pos", [6.0,28.0])
+        self.declare_parameter("human_pos", [0.0,0.0])
         self.human_pos = self.get_parameter("human_pos").get_parameter_value().double_array_value
-    
+      
 
-        self.declare_parameter("radius", 12.0)
+        self.declare_parameter("radius", 2.0)
         self.radius = self.get_parameter("radius").get_parameter_value().double_value
 
         self.declare_parameter("env", "room_lvl7")
@@ -34,8 +50,16 @@ class BestVertices(Node):
         self.declare_parameter("update_rate_info", 1.0)
         self.update_rate_info = self.get_parameter("update_rate_info").get_parameter_value().double_value                                
         
-        self.marker_pub = self.create_publisher(MarkerArray, 'visualization_marker_array',10)
-
+        
+        #Publishers
+        self.marker_pub = self.create_publisher(MarkerArray, self.ns+'/'+'visualization_marker_array',QoSProfile(depth=10,durability =1))
+        self.voronoi_map_pub = None
+        #Subscribers
+        self.subscription = self.create_subscription(Graph,self.segment_topic, self.graph_callback,10)
+        self.robot_state_subscription = self.create_subscription(ExplorationState,"/exploration_state", self.robot_state_callback,10)
+        self.map_subscription = None
+        self.robot_location = [0]*self.n_robots
+        
         
         self.timer_main = self.create_timer(1, self.timer_callbaclk)
 
@@ -45,21 +69,57 @@ class BestVertices(Node):
         self.get_logger().info("radius: "+str(self.radius))
         self.get_logger().info("env: "+str(self.env))
         self.get_logger().info("update_rate_info: "+str(self.update_rate_info))
+        
+            
+    def map_callback(self,msg):
+        if self.map == None :
+            self.get_logger().info("Complete Map Recieved")
+            self.map = msg
+        
     
     def graph_callback(self,msg):
         self.vertices = msg.vertices
+    
+    def robot_state_callback(self,msg):
+
+        if int(msg.status) != int(ExplorationState.DONE):
+            return
+        if int(msg.robot_id) not in self.finished_robots:
+            self.finished_robots.append(int(msg.robot_id))
+            self.get_logger().info("Robot"+str(int(msg.robot_id))+" has finished")
+            self.robot_location[int(msg.robot_id)-1] = [msg.location.position.x,msg.location.position.y]
+            
+        if len(self.finished_robots) == self.n_robots and self.map_subscription == None:
+            self.get_logger().info("All robots have finished exploration")
+            self.map_subscription =  self.create_subscription(OccupancyGrid,self.map_topic, self.map_callback,10)
+                
 
  
     def timer_callbaclk(self): 
 
+        if self.map==None:
+            return 
+        else:
+            if self.voronoi_map_pub ==None:
+                self.get_logger().info("Sending to tuw_voronoi_package")
+                self.voronoi_map_pub = self.create_publisher(OccupancyGrid,self.voronoi_map_topic,QoSProfile(depth=10,durability =1))
+                self.voronoi_map_pub.publish(self.map)
+
+         
          
         if self.vertices == None or len(self.vertices)==0:
+            self.get_logger().info("No Graph recieved")
             return
+        
+        self.get_logger().info("Graph recieved")
         
         V = self.Vertices(self.vertices)
         self.ver = V[:]
-    
+        
+        self.human_pos = [self.human_pos[0] - self.map.info.origin.position.x , self.human_pos[1]-self.map.info.origin.position.y]
+        
         human_pos = tuple(self.human_pos)
+        
         try:
             robot_pos = self.RobotPos(self.n_robots, human_pos, self.radius, V) 
         except IndexError as e:
@@ -72,7 +132,7 @@ class BestVertices(Node):
         self.get_logger().info("\nRobot positions (green circles): ")   
         markerArray = self.PubMarker(self.human_pos, robot_pos)   
         self.marker_pub.publish(markerArray)
-        
+        self.timer_main.cancel()
         
     
     def Dist(self,a, b):
@@ -131,7 +191,7 @@ class BestVertices(Node):
             pass
         return robot_pos
 
-    def RobotMarker(self, point, markerArray):
+    def GoalMarker(self, point, markerArray):
         marker = Marker()
         marker.header.frame_id = "/map"
         marker.header.stamp = self.get_clock().now().to_msg()
@@ -144,8 +204,8 @@ class BestVertices(Node):
         marker.color.g = 1.0
         marker.color.b = 0.0
         marker.color.a = 1.0
-        marker.pose.position.x = float(point[0])
-        marker.pose.position.y = float(point[1])
+        marker.pose.position.x = float(point[0]) + self.map.info.origin.position.x
+        marker.pose.position.y = float(point[1]) + self.map.info.origin.position.y
         marker.pose.position.z = 0.0
         marker.pose.orientation.x = 0.0
         marker.pose.orientation.y = 0.0
@@ -167,6 +227,30 @@ class BestVertices(Node):
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker.color.a = 1.0
+        marker.pose.position.x = float(point[0]) + self.map.info.origin.position.x
+        marker.pose.position.y = float(point[1]) + self.map.info.origin.position.y
+        marker.pose.position.z = 0.0
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        markerArray.markers.append(marker)        
+        
+        return markerArray
+    
+    def RobotMarker(self, point, markerArray):
+        marker = Marker()
+        marker.header.frame_id = "/map"
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.type = 3
+        marker.id = 0
+        marker.scale.x = 0.4
+        marker.scale.y = 0.4
+        marker.scale.z = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 1.0
+        marker.color.a = 1.0
         marker.pose.position.x = float(point[0])
         marker.pose.position.y = float(point[1])
         marker.pose.position.z = 0.0
@@ -182,28 +266,11 @@ class BestVertices(Node):
         markerArray = MarkerArray()
         markerArray = self.HumanMarker(human_pos, markerArray)
         for i in range(len(max_degs_vertices)):
-            markerArray = self.RobotMarker(max_degs_vertices[i], markerArray)
-        for v in self.ver:
-            marker = Marker()
-            marker.header.frame_id = "/map"
-            marker.header.stamp = self.get_clock().now().to_msg()
-            marker.type = 3
-            marker.id = 0
-            marker.scale.x = 0.25
-            marker.scale.y = 0.25
-            marker.scale.z = 1.0
-            marker.color.r = 0.0
-            marker.color.g = 0.0
-            marker.color.b = 1.0
-            marker.color.a = 1.0
-            marker.pose.position.x = float(v[0])
-            marker.pose.position.y = float(v[1])
-            marker.pose.position.z = 0.0
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
-            markerArray.markers.append(marker)
+            markerArray = self.GoalMarker(max_degs_vertices[i], markerArray)
+            
+        for loc in self.robot_location:
+            markerArray = self.RobotMarker(loc, markerArray)
+            
         id = 0
         for m in markerArray.markers:
             m.id = id
@@ -216,7 +283,6 @@ def main(args=None):
     rclpy.init(args=args)
 
     node = BestVertices()
-
     rclpy.spin(node)
 
     # Destroy the node explicitly

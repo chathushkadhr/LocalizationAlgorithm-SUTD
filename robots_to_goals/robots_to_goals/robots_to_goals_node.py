@@ -6,6 +6,8 @@ from visualization_msgs.msg import MarkerArray
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Point
 from rclpy.qos import QoSProfile
+from rclpy.action import ActionClient
+from nav2_msgs.action import NavigateToPose
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -16,68 +18,66 @@ class RobotsToGoals(Node):
     def __init__(self):
         super().__init__('robots_to_goals_node')
         
-        self.HEIGHT = 0
-        self.WIDTH = 0
-        self.originx = 0
-        self.originy = 0
-        self.resolution = 0
+        self.HEIGHT,self.WIDTH,self.originx,self.originy,self.resolution = 0,0,0,0,0
         self.map = None
         self.id = -1
        
-        self.subscription = self.create_subscription(OccupancyGrid,"/map", self.map_callback,QoSProfile(depth=10,durability =1))
+        self.subscription = self.create_subscription(OccupancyGrid,"/human/voronoi_map", self.map_callback,QoSProfile(depth=10,durability =1))
+        self.subscription = self.create_subscription(MarkerArray,"/human/visualization_marker_array", self.marker_callback,QoSProfile(depth=10,durability =1))
        
-        self.rob_pos = [[2,3],
-                        [7,10],
-                        [25,30],
-                        [6.2,16],
-                        [5,10],
-                        [10,28]]
+       
+        self.goal_pos = []
+
+        self.rob_pos = []
         
-        self.goal_pos = [[3.1000000461935997,16.400000244379044],
-                         [5.650000084191561,5.200000077486038],
-                         [10.900000162422657,25.00000037252903],
-                         [21.950000327080488,25.100000374019146],
-                         [2.600000038743019,12.10000018030405],
-                         [13.90000020712614,29.000000432133675]]
-        
-               
-        # self.rob_pos = [[1.4,2.8],
-        #                 [2.1,13.2],
-        #                 [5.2,13.7],
-        #                 [4.3,25.5],
-        #                 [16.9,25.8],]
-        
-        # self.goal_pos = [[1.9,8.15],
-        #                 [5.9,17.9],
-        #                 [2.7,1.8],
-        #                 [9.5,27.0],
-        #                 [21.4,27.9]]
         
         self.markerArray = MarkerArray()  
          
         self.marker_pub = self.create_publisher(MarkerArray, 'Goals', QoSProfile(depth=10,durability =1  ))   
           
-
+        self.matrix = None
+        
         self.timer_main = self.create_timer(2, self.timer_callback)
         
 
 
     def timer_callback(self): 
-        if self.map == None :
+    
+        if self.map == None or len(self.goal_pos)==0:
             return 
-        else:
+        elif self.matrix == None:
             distance_to_robots = self.find_distances()         
             self.get_logger().info(str(distance_to_robots)) 
         
             row_ind, col_ind = linear_sum_assignment(np.array(list(distance_to_robots.values())) )
+            self.matrix = tuple(zip(row_ind, col_ind))
             
-            self.visualize_relations(zip(row_ind, col_ind))
-            
+            self.visualize_relations(self.matrix)
+  
             self.marker_pub.publish(self.markerArray)
+            
+            
+        else:
+            self.get_logger().info("Sending Goals") 
+            self.send_goals()
+            
+    
+    
+    
+    def send_goals(self):
+        robot_goal_ = NavigateToPose.Goal()
+        robot_goal_.pose.header.frame_id = "map"
+        robot_goal_.pose.pose.position.z = 0.0
+        robot_goal_.pose.pose.orientation.z = 1.0
 
-            self.timer_main.cancel()    
+        for i, j in self.matrix :
+            action_client = ActionClient(self, NavigateToPose, '/robot'+str(i+1)+'/navigate_to_pose')
+            robot_goal_.pose.header.stamp = self.get_clock().now().to_msg()
+            robot_goal_.pose.pose.position.x = self.goal_pos[j][0]
+            robot_goal_.pose.pose.position.y = self.goal_pos[j][1]
+            action_client.send_goal_async(robot_goal_)  
     
-    
+        
     def find_distances(self):
         dismaps_list=[]
         for pos in self.goal_pos:
@@ -99,7 +99,6 @@ class RobotsToGoals(Node):
     def map_callback(self,msg):
 
         self.get_logger().info("map_recieved "+str(msg.info.height)+" , "+str(msg.info.width)+ " , "+str(msg.info.resolution))
-        self.get_logger().info("origin "+str(msg.info.origin.position.x)+" , "+str(msg.info.origin.position.y))
         
         self.originx = msg.info.origin.position.x
         self.originy = msg.info.origin.position.y
@@ -109,6 +108,17 @@ class RobotsToGoals(Node):
         self.WIDTH = msg.info.width
         self.map = [int(x) for x in msg.data]
         self.get_logger().info("map_copied")
+        
+    def marker_callback(self,msg):
+        if not len(self.goal_pos):
+            for marker in msg.markers:
+                if marker.type == 2: #Type of the goals marker
+                    self.goal_pos.append([marker.pose.position.x,marker.pose.position.y])
+                if marker.type == 3: #Type of the robot marker
+                    self.rob_pos.append([marker.pose.position.x,marker.pose.position.y])    
+
+        self.get_logger().info("marker_array_recieved ")
+  
        
     def assign_id(self):
         self.id+=1
@@ -123,7 +133,9 @@ class RobotsToGoals(Node):
 
         iter_ = 0
         curr_iter.append([goal[0], goal[1]])
-
+        
+        self.get_logger().info("index "+str(goal[0] * self.WIDTH + goal[1]))
+        self.get_logger().info("length "+ str(len(dismap_)))
         dismap_[goal[0] * self.WIDTH + goal[1]] = -500
         
         while len(curr_iter)>0:
@@ -180,111 +192,7 @@ class RobotsToGoals(Node):
             
         dismap_[goal[0] * self.WIDTH + goal[1]] = 0
         return dismap_
-    
-                     
-
-
-    def robot_markers(self):
-        
-        marker_array = MarkerArray()
-        index = 1
-        for v in self.rob_pos:
-            marker = Marker()
-            marker.header.frame_id = "/map"
-            marker.header.stamp = self.get_clock().now().to_msg()
-            marker.type = 3
-            marker.id = self.assign_id()
-            marker.scale.x = 0.4
-            marker.scale.y = 0.4
-            marker.scale.z = 1.0
-            marker.color.r = 0.0
-            marker.color.g = 0.0
-            marker.color.b = 1.0
-            marker.color.a = 1.0
-            marker.pose.position.x = float(v[0])
-            marker.pose.position.y = float(v[1])
-            marker.pose.position.z = 0.0
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
-            marker_array.markers.append(marker) 
-            
-            marker = Marker()
-            marker.header.frame_id = "/map"
-            marker.header.stamp = self.get_clock().now().to_msg()
-            marker.type = 9
-            marker.id = self.assign_id()
-            marker.scale.x = 0.8
-            marker.scale.y = 0.8
-            marker.scale.z = 1.0
-            marker.color.r = 0.0
-            marker.color.g = 0.0
-            marker.color.b = 1.0
-            marker.color.a = 1.0
-            marker.pose.position.x = float(v[0])
-            marker.pose.position.y = float(v[1])+0.5
-            marker.pose.position.z = 0.0
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
-            marker.text = "R"+str(index)
-            marker_array.markers.append(marker)  
-            
-            index+=1 
-        return marker_array.markers
-        
-    def goal_markers(self):
-        marker_array = MarkerArray()  
-        index = 1  
-        for v in self.goal_pos:
-            marker = Marker()
-            marker.header.frame_id = "/map"
-            marker.header.stamp = self.get_clock().now().to_msg()
-            marker.type = 3
-            marker.id = self.assign_id()
-            marker.scale.x = 0.4
-            marker.scale.y = 0.4
-            marker.scale.z = 1.0
-            marker.color.r = 1.0
-            marker.color.g = 0.0
-            marker.color.b = 0.0
-            marker.color.a = 1.0
-            marker.pose.position.x = float(v[0])
-            marker.pose.position.y = float(v[1])
-            marker.pose.position.z = 0.0
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
-            marker_array.markers.append(marker) 
-            
-            marker = Marker()
-            marker.header.frame_id = "/map"
-            marker.header.stamp = self.get_clock().now().to_msg()
-            marker.type = 9
-            marker.id = self.assign_id()
-            marker.scale.x = 0.8
-            marker.scale.y = 0.8
-            marker.scale.z = 1.0
-            marker.color.r = 1.0
-            marker.color.g = 0.0
-            marker.color.b = 0.0
-            marker.color.a = 1.0
-            marker.pose.position.x = float(v[0])
-            marker.pose.position.y = float(v[1])+0.5
-            marker.pose.position.z = 0.0
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
-            marker.text = "G"+str(index)
-            marker_array.markers.append(marker)  
-            index+=1
-            
-        return marker_array.markers    
-              
+           
     def visualize_relations(self, matrix):
         connection_array = MarkerArray()
         for i, j in matrix:
@@ -297,9 +205,9 @@ class RobotsToGoals(Node):
             marker.scale.x = 0.1
             marker.scale.y = 1.0
             marker.scale.z = 1.0
-            marker.color.r = 0.0
-            marker.color.g = 1.0
-            marker.color.b = 0.0
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 1.0
             marker.color.a = 1.0
             p1 = Point()
             p1.x = float(self.rob_pos[i][0])
@@ -313,7 +221,7 @@ class RobotsToGoals(Node):
             marker.points.append(p2)
             connection_array.markers.append(marker)  
               
-        self.markerArray.markers+= self.robot_markers() + self.goal_markers() + connection_array.markers    
+        self.markerArray.markers+= connection_array.markers    
 
 def main(args=None):
     rclpy.init(args=args)
