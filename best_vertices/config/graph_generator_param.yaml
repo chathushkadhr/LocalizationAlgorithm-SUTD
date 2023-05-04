@@ -8,6 +8,6 @@
     opt_crossings: 0.5
     opt_end_segments: 1.0
     graph_cache_path: $(var path)/cfg/graph/$(var cfg)/cache/
-    voronoi_map_topic: /$(var namespace)/voronoi_map
-    segment_topic: /$(var namespace)/segments
+    voronoi_map_topic: voronoi_map
+    segment_topic: segments
     # custom_graph_path: $(var custom_graph_path) 

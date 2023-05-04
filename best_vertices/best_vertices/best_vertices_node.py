@@ -22,13 +22,11 @@ class BestVertices(Node):
         self.finished_robots = []
         self.map = None
         
-        self.declare_parameter("ns", "/robot1")
-        self.ns = self.get_parameter("ns").get_parameter_value().string_value 
         
-        self.declare_parameter("segment_topic", "/robot1/segments")
+        self.declare_parameter("segment_topic", "segments")
         self.segment_topic = self.get_parameter("segment_topic").get_parameter_value().string_value      
     
-        self.declare_parameter("voronoi_map_topic", "/robot1/voronoi_map")
+        self.declare_parameter("voronoi_map_topic", "voronoi_map")
         self.voronoi_map_topic = self.get_parameter("voronoi_map_topic").get_parameter_value().string_value  
               
         self.declare_parameter("map_topic", "/robot1/map")
@@ -52,17 +50,18 @@ class BestVertices(Node):
         
         
         #Publishers
-        self.marker_pub = self.create_publisher(MarkerArray, self.ns+'/'+'visualization_marker_array',QoSProfile(depth=10,durability =1))
+        self.marker_pub = self.create_publisher(MarkerArray, 'visualization_marker_array',QoSProfile(depth=10,durability =1))
+        self.current_pos_pub = self.create_publisher(MarkerArray, 'current_pos_marker_array',10)
         self.voronoi_map_pub = None
         #Subscribers
         self.subscription = self.create_subscription(Graph,self.segment_topic, self.graph_callback,10)
         self.robot_state_subscription = self.create_subscription(ExplorationState,"/exploration_state", self.robot_state_callback,10)
         self.map_subscription = None
         self.robot_location = [0]*self.n_robots
+        self.cur_robot_location = [0]*self.n_robots
         
-        
-        self.timer_main = self.create_timer(1, self.timer_callbaclk)
-
+        self.timer_main = self.create_timer(self.update_rate_info, self.timer_callbaclk)
+        self.timer_marker = self.create_timer(0.5, self.PublishCurrentPos)  
         
         self.get_logger().info("n_robots: "+str(self.n_robots))
         self.get_logger().info("human_pos :"+str(self.human_pos))
@@ -81,7 +80,7 @@ class BestVertices(Node):
         self.vertices = msg.vertices
     
     def robot_state_callback(self,msg):
-
+        self.cur_robot_location[int(msg.robot_id)-1] = [msg.location.position.x,msg.location.position.y]
         if int(msg.status) != int(ExplorationState.DONE):
             return
         if int(msg.robot_id) not in self.finished_robots:
@@ -277,7 +276,38 @@ class BestVertices(Node):
             id += 1
         return markerArray
 
-
+    def PublishCurrentPos(self):
+        markerArray = MarkerArray()
+        for point in self.cur_robot_location:
+            if point ==0:
+                return
+            marker = Marker()
+            marker.header.frame_id = "/map"
+            marker.header.stamp = self.get_clock().now().to_msg()
+            marker.type = 2
+            marker.id = 0
+            marker.scale.x = 0.6
+            marker.scale.y = 0.6
+            marker.scale.z = 1.0
+            marker.color.r = 0.6
+            marker.color.g = 0.5
+            marker.color.b = 0.2
+            marker.color.a = 1.0
+            marker.pose.position.x = float(point[0])
+            marker.pose.position.y = float(point[1]) 
+            marker.pose.position.z = 0.0
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            markerArray.markers.append(marker)
+        
+        id=0
+        for m in markerArray.markers:
+            m.id = id
+            id += 1    
+            
+        self.current_pos_pub.publish(markerArray)
 
 def main(args=None):
     rclpy.init(args=args)

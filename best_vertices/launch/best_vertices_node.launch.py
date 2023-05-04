@@ -16,18 +16,8 @@ def generate_launch_description():
     
     pkg_dir = get_package_share_directory("best_vertices")
     launch_dir = os.path.join(pkg_dir, 'launch')
-    #Declare arguments
-    declare_arg_n_robots = DeclareLaunchArgument("n_robots",
-        default_value = "2",
-        description ='Number of robots')
     
-    declare_arg_human_pos = DeclareLaunchArgument('human_pos',
-        default_value= "[0.0,0.0]",
-        description='Position of the human')
-        
-    declare_arg_radius = DeclareLaunchArgument('radius',
-        default_value= "12.0",
-        description='Radius')
+    #Declare arguments
         
     declare_arg_env = DeclareLaunchArgument('env',
         default_value= "test_zone",
@@ -38,19 +28,10 @@ def generate_launch_description():
         default_value= pkg_dir,
         description='path to the best_vertices package')   
      
-    declare_arg_update_rate_info = DeclareLaunchArgument('update_rate_info',
-        default_value= "1.0",
-        description='Information update rate')       
-    
-    
                 
     #Create Launch configuratios
-    n_robots = LaunchConfiguration("n_robots")
-    human_pos = LaunchConfiguration('human_pos')
-    radius = LaunchConfiguration('radius')
     env = LaunchConfiguration('env',default="test_zone")
     path = LaunchConfiguration('path')
-    update_rate_info = LaunchConfiguration('update_rate_info')
     namespace = LaunchConfiguration('namespace',default="human")
 
     bv_node= Node(
@@ -93,13 +74,8 @@ def generate_launch_description():
         )
     
     ld = LaunchDescription()
-    ld.add_action(declare_arg_n_robots)
-    ld.add_action(declare_arg_human_pos)
-    ld.add_action(declare_arg_radius)
     ld.add_action(declare_arg_env)
     ld.add_action(declare_arg_path)
-    ld.add_action(declare_arg_update_rate_info)
-    
     ld.add_action(graph_cmd)
     ld.add_action(bv_node)
     ld.add_action(rtg_node)

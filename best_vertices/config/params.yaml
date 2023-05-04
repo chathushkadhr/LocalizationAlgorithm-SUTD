@@ -1,13 +1,12 @@
 /$(var namespace)/best_vertices_node:
   ros__parameters:
-    ns: /$(var namespace)
-    n_robots: $(var n_robots)
-    human_pos: $(var human_pos)
-    radius: $(var radius) 
+    n_robots: 6
+    human_pos: [0.0,0.0]
+    radius: 20.0
     env: $(var env) 
-    update_rate_info: $(var update_rate_info) 
-    map_topic: /robot1/map
-    voronoi_map_topic: /$(var namespace)/voronoi_map
-    segment_topic: /$(var namespace)/segments
+    update_rate_info: 1.0
+    map_topic: /robot1/map   
+    voronoi_map_topic: voronoi_map
+    segment_topic: segments
  
 
