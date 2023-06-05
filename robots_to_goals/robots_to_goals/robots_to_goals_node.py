@@ -12,6 +12,9 @@ from nav2_msgs.action import NavigateToPose
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+
+distance_to_robots_list =[]
+all_possibilities = [] 
 class RobotsToGoals(Node):
     
     
@@ -46,10 +49,16 @@ class RobotsToGoals(Node):
         if self.map == None or len(self.goal_pos)==0:
             return 
         elif self.matrix == None:
-            distance_to_robots = self.find_distances()         
-            self.get_logger().info(str(distance_to_robots)) 
-        
-            row_ind, col_ind = linear_sum_assignment(np.array(list(distance_to_robots.values())) )
+            distance_to_robots = self.find_distances() 
+            #self.get_logger().info(str(distance_to_robots)) 
+
+            #previous method
+            # row_ind, col_ind = linear_sum_assignment(np.array(list(distance_to_robots.values())) )
+            
+            #New method
+            row_ind, col_ind = self.assign_goals(distance_to_robots)
+            
+            self.get_logger().info(str(row_ind)+"  " +str(col_ind))
             self.matrix = tuple(zip(row_ind, col_ind))
             
             self.visualize_relations(self.matrix)
@@ -62,7 +71,41 @@ class RobotsToGoals(Node):
             self.send_goals()
             
     
-    
+
+
+    def find_possibilities(self,data,next_ind,Unavailable_indexes,current_possibility,distances):
+        if len(Unavailable_indexes) == len(data):
+            distances.sort(reverse=True)
+            all_possibilities.append([distances,current_possibility])
+            return
+        
+        for x in range(len(data[next_ind])):
+            if x in Unavailable_indexes:
+                continue
+            
+            self.find_possibilities(distance_to_robots_list,next_ind+1,Unavailable_indexes+[x],current_possibility+[(next_ind,x)],distances+[distance_to_robots_list[next_ind][x]])
+        
+
+    def assign_goals(self,distance_to_robots):
+        global distance_to_robots_list,all_possibilities
+        
+        distance_to_robots_list = [distance_to_robots[i] for i in range(1,len(distance_to_robots)+1)]
+
+        next_ind = 0
+        for y in range(len(distance_to_robots_list)):
+            possibility=[(next_ind,y)]
+            self.find_possibilities(distance_to_robots_list,next_ind+1,[y],possibility[:],[distance_to_robots_list[next_ind][y]])
+        
+        
+     
+        all_possibilities.sort(reverse=True)
+     
+        best_possibility=all_possibilities[-1]
+            
+        print(best_possibility)    
+        return [[robot[0] for robot in best_possibility[1]],[goal[1] for goal in best_possibility[1]]]
+
+
     
     def send_goals(self):
         robot_goal_ = NavigateToPose.Goal()
@@ -133,9 +176,7 @@ class RobotsToGoals(Node):
 
         iter_ = 0
         curr_iter.append([goal[0], goal[1]])
-        
-        self.get_logger().info("index "+str(goal[0] * self.WIDTH + goal[1]))
-        self.get_logger().info("length "+ str(len(dismap_)))
+  
         dismap_[goal[0] * self.WIDTH + goal[1]] = -500
         
         while len(curr_iter)>0:
@@ -221,8 +262,10 @@ class RobotsToGoals(Node):
             marker.points.append(p2)
             connection_array.markers.append(marker)  
               
-        self.markerArray.markers+= connection_array.markers    
-
+        self.markerArray.markers+= connection_array.markers
+        
+ 
+            
 def main(args=None):
     rclpy.init(args=args)
 
